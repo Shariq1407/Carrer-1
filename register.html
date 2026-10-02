@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Account — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="auth-wrap">
+    <aside class="auth-visual">
+      <div class="brand-line"><img src="assets/logo.svg" width="30" alt=""> Career Mate</div>
+      <div>
+        <div class="quote">"Ek platform mein syllabus, roadmap, planner sab kuch. Ab no more Telegram-WhatsApp chaos."</div>
+        <div class="who">— Priya, BCA, DU</div>
+        <ul>
+          <li>✅ Personalized onboarding</li>
+          <li>✅ Career roadmap with prerequisites</li>
+          <li>✅ Daily planner with smart rescheduling</li>
+          <li>✅ Free for students</li>
+        </ul>
+      </div>
+      <div class="small" style="opacity:.7">Education + Career Roadmap + Daily Planner</div>
+    </aside>
+
+    <div class="auth-form-side">
+      <div class="auth-card">
+        <div class="card">
+          <h1>Create your account</h1>
+          <p class="sub">2 minutes setup. Personalized from day one.</p>
+
+          <form id="reg-form" novalidate>
+            <div class="form-field">
+              <label for="fullName">Full Name</label>
+              <input type="text" id="fullName" placeholder="Enter your full name" autocomplete="name">
+              <div class="field-error" id="err-fullName">Name required</div>
+            </div>
+            <div class="form-field">
+              <label for="email">Email</label>
+              <input type="email" id="email" placeholder="you@example.com">
+              <div class="field-error" id="err-email">Valid email required</div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="password">Password</label>
+                <input type="password" id="password" placeholder="Min 6 characters">
+                <div class="field-error" id="err-password">Min 6 characters</div>
+              </div>
+              <div class="form-field">
+                <label for="confirm">Confirm Password</label>
+                <input type="password" id="confirm" placeholder="Repeat password">
+                <div class="field-error" id="err-confirm">Passwords don't match</div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-field">
+                <label for="program">Program</label>
+                <select id="program">
+                  <option value="" selected disabled>Select Program</option>
+                  <option value="btech-cse">B.Tech CSE</option>
+                  <option value="btech-it">B.Tech IT</option>
+                  <option value="bca">BCA</option>
+                  <option value="other">Other</option>
+                </select>
+                <div class="field-error" id="err-program">Please select program</div>
+              </div>
+              <div class="form-field">
+                <label for="university">University</label>
+                <select id="university">
+                  <option value="" selected disabled>Select University</option>
+                  <option value="aktu">AKTU</option>
+                  <option value="du">DU</option>
+                  <option value="ipu">IPU</option>
+                  <option value="mdu">Mumbai University</option>
+                  <option value="other">Other</option>
+                </select>
+                <div class="field-error" id="err-university">Please select university</div>
+              </div>
+            </div>
+            <div class="form-field">
+              <label for="semester">Semester</label>
+              <select id="semester">
+                <option value="" selected disabled>Select Semester</option>
+                <option value="1">Semester 1</option>
+                <option value="2">Semester 2</option>
+                <option value="3">Semester 3</option>
+                <option value="4">Semester 4</option>
+                <option value="5">Semester 5</option>
+                <option value="6">Semester 6</option>
+              </select>
+              <div class="field-error" id="err-semester">Please select semester</div>
+            </div>
+
+            <div class="field-error" id="err-form" style="margin-bottom:10px"></div>
+            <button class="btn btn-primary btn-block" type="submit">Create Account</button>
+          </form>
+
+          <p class="auth-alt">Already registered? <a href="login.html">Login</a></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    /* only a real logged-in session skips the register form */
+    if (Store.realLogin && Store.user()) location.href = 'dashboard.html';
+
+    $('#reg-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const v = id => $(id).value.trim();
+      const data = {
+        fullName: v('#fullName'), email: v('#email'),
+        password: $('#password').value,
+        program: $('#program').value,
+        university: $('#university').value,
+        semester: $('#semester').value ? parseInt($('#semester').value, 10) : null
+      };
+
+      let ok = true;
+      const mark = (field, errId, bad) => {
+        $(errId).style.display = bad ? 'block' : 'none';
+        if (bad) ok = false;
+      };
+      mark('#fullName', '#err-fullName', !data.fullName);
+      mark('#email', '#err-email', !/^\S+@\S+\.\S+$/.test(data.email));
+      mark('#password', '#err-password', data.password.length < 6);
+      mark('#confirm', '#err-confirm', data.password !== $('#confirm').value);
+      mark('#program', '#err-program', !data.program);
+      mark('#university', '#err-university', !data.university);
+      mark('#semester', '#err-semester', !data.semester);
+      if (!ok) return;
+
+      const res = Store.register(data);
+      if (!res.ok) {
+        $('#err-form').textContent = res.error;
+        $('#err-form').style.display = 'block';
+        return;
+      }
+      location.href = 'onboarding.html';
+    });
+  </script>
+</body>
+</html>

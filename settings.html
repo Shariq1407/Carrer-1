@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('settings', { title: 'Settings' });
+
+    const content = document.querySelector('.content');
+
+    function progName(id) { const p = CM_PROGRAMS.find(x => x.id === id); return p ? p.name : id; }
+    function uniShort(id) { const u = CM_UNIVERSITIES.find(x => x.id === id); return u ? u.short : id; }
+
+    content.innerHTML =
+      '<div class="content-head"><div><h1>Settings</h1>' +
+        '<p>Account, preferences aur data controls.</p></div></div>' +
+
+      '<div class="dash-grid">' +
+        '<div class="col">' +
+
+          /* account */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>👤 Account</h3></div>' +
+            '<div class="form-field"><label>Full Name</label><input id="st-name" value="' + escapeHtml(user.fullName) + '"></div>' +
+            '<div class="form-field"><label>Email</label><input value="' + escapeHtml(user.email) + '" disabled></div>' +
+            '<div class="form-row">' +
+              '<div class="form-field"><label>Program</label><select id="st-program">' +
+                CM_PROGRAMS.map(p => '<option value="' + p.id + '"' + (user.program === p.id ? ' selected' : '') + '>' + p.name + '</option>').join('') +
+              '</select></div>' +
+              '<div class="form-field"><label>Semester</label><select id="st-sem">' +
+                CM_SEMESTERS.map(s => '<option value="' + s + '"' + (user.semester === s ? ' selected' : '') + '>Semester ' + s + '</option>').join('') +
+              '</select></div>' +
+            '</div>' +
+            '<button class="btn btn-primary btn-sm" id="st-save">Save Changes</button>' +
+          '</div>' +
+
+          /* study prefs */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>⏱ Daily Study Capacity</h3></div>' +
+            '<p class="muted small">Planner isi limit mein tasks rakhega (max 120% overload allowed for rescheduling).</p>' +
+            '<div class="chip-group" style="margin-top:12px">' +
+              [30, 60, 90, 120, 180].map(m =>
+                '<span><input type="radio" name="cap" id="cap' + m + '" value="' + m + '"' +
+                (user.dailyMinutes === m ? ' checked' : '') + '><label for="cap' + m + '">' +
+                (m >= 60 ? (m / 60) + ' hr' : m + ' min') + '</label></span>').join('') +
+            '</div>' +
+            '<button class="btn btn-primary btn-sm" id="cap-save" style="margin-top:14px">Update Capacity</button>' +
+          '</div>' +
+
+          /* privacy */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🔒 Privacy & AI Assistant</h3></div>' +
+            '<p class="muted small">AI Assistant ko sirf yeh data milta hai: program, university, semester, career goal, completed roadmap steps, aur public community questions.</p>' +
+            '<div class="topic-list" style="margin-top:10px">' +
+              '<div class="topic-item" style="color:var(--danger)">❌ Passwords</div>' +
+              '<div class="topic-item" style="color:var(--danger)">❌ Billing information</div>' +
+              '<div class="topic-item" style="color:var(--danger)">❌ Private messages</div>' +
+              '<div class="topic-item" style="color:var(--danger)">❌ Identity documents</div>' +
+              '<div class="topic-item" style="color:var(--danger)">❌ Personal journal entries</div>' +
+            '</div>' +
+          '</div>' +
+
+        '</div>' +
+
+        '<div class="col">' +
+
+          /* role */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🛡 Role</h3></div>' +
+            '<p>Current role: <strong>' + (user.role === 'admin' ? 'Super Admin' : user.role === 'moderator' ? 'Moderator' : 'Student') + '</strong></p>' +
+            '<p class="muted small" style="margin-top:6px">Roles backend-enforced hote hain — sirf UI hide karna kaafi nahi.</p>' +
+          '</div>' +
+
+          /* notifications prefs */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🔔 Notifications</h3></div>' +
+            '<div class="topic-list">' +
+              '<label class="topic-item"><input type="checkbox" checked> Task due reminders</label>' +
+              '<label class="topic-item"><input type="checkbox" checked> Reschedule alerts</label>' +
+              '<label class="topic-item"><input type="checkbox" checked> Streak reminders</label>' +
+              '<label class="topic-item"><input type="checkbox"> New resources digest</label>' +
+            '</div>' +
+          '</div>' +
+
+          /* danger zone */
+          '<div class="card" style="border-color:var(--danger)">' +
+            '<div class="card-title-row"><h3>⚠️ Data</h3></div>' +
+            '<p class="muted small">Demo data reset karo — saare users, tasks aur posts default sample state mein aa jayenge.</p>' +
+            '<button class="btn btn-danger btn-sm" id="reset-data" style="margin-top:12px">Reset Demo Data</button>' +
+          '</div>' +
+
+        '</div>' +
+      '</div>';
+
+    $('#st-save').onclick = () => {
+      Store.update({
+        fullName: $('#st-name').value.trim() || user.fullName,
+        program: $('#st-program').value,
+        semester: parseInt($('#st-sem').value, 10)
+      });
+      toast('Settings saved ✅');
+      setTimeout(() => location.reload(), 350);
+    };
+
+    $('#cap-save').onclick = () => {
+      const sel = document.querySelector('input[name="cap"]:checked');
+      if (!sel) return;
+      Store.update({ dailyMinutes: parseInt(sel.value, 10) });
+      Store.pushNotif('⏱', 'Daily study capacity updated to ' + sel.value + ' minutes.');
+      toast('Daily capacity updated ✅');
+    };
+
+    $('#reset-data').onclick = () => openModal(
+      '<h3>⚠️ Reset all demo data?</h3>' +
+      '<p class="muted small">Users, tasks, posts, notifications — sab original sample state mein wapas jayenge. Aap login-out ho jaoge.</p>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
+        '<button class="btn btn-danger" id="do-reset">Reset</button></div>');
+    $('#do-reset').onclick = () => {
+      Store.reset();
+      location.href = 'index.html';
+    };
+  </script>
+</body>
+</html>

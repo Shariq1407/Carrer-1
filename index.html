@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Career Mate — Your Education. Your Career. Your Roadmap.</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ===== NAV ===== -->
+  <header class="landing-nav">
+    <div class="inner">
+      <a class="brand" href="index.html">
+        <img src="assets/logo.svg" width="30" height="30" alt="">Career Mate
+      </a>
+      <nav class="links">
+        <a href="#features">Why Us</a>
+        <a href="#problem">The Problem</a>
+        <a href="#roadmap-preview">Roadmaps</a>
+        <a href="login.html">Login</a>
+      </nav>
+      <div class="nav-menu-wrap">
+        <button class="nav-menu-btn" id="nav-menu-btn">☰ Menu <span class="caret">▼</span></button>
+        <div class="nav-dropdown" id="nav-dropdown">
+          <div class="drop-head">Platform</div>
+          <a href="dashboard.html"><span class="icon">🏠</span> Dashboard</a>
+          <a href="education.html"><span class="icon">📚</span> Education</a>
+          <a href="career.html"><span class="icon">🚀</span> Career</a>
+          <a href="roadmap.html"><span class="icon">🗺️</span> Roadmaps</a>
+          <a href="planner.html"><span class="icon">📅</span> Daily Planner</a>
+          <a href="goals.html"><span class="icon">🎯</span> Goals</a>
+          <a href="progress.html"><span class="icon">📈</span> Progress</a>
+          <div class="drop-sep"></div>
+          <a href="assistant.html"><span class="icon">🤖</span> AI Assistant</a>
+          <a href="community.html"><span class="icon">👥</span> Community</a>
+          <a href="profile.html"><span class="icon">🧑‍💼</span> Profile</a>
+          <a href="notifications.html"><span class="icon">🔔</span> Notifications</a>
+          <a href="settings.html"><span class="icon">⚙️</span> Settings</a>
+        </div>
+      </div>
+      <a class="btn btn-primary btn-sm" href="register.html">Start Your Journey</a>
+    </div>
+  </header>
+
+  <!-- ===== HERO ===== -->
+  <section class="hero">
+    <div class="inner">
+      <div>
+        <h1>Your Education. Your Career.<br><span class="grad">Your Roadmap.</span></h1>
+        <p class="lead">
+          Learn what matters, follow the right roadmap, and turn your career goal into
+          daily actionable tasks.
+        </p>
+        <div class="hero-cta">
+          <a class="btn btn-primary btn-lg" href="register.html">Explore Careers</a>
+          <a class="btn btn-outline btn-lg" href="register.html">Start Your Journey</a>
+        </div>
+        <div class="hero-trust">
+          <span>🎓 BCA + B.Tech focused</span>
+          <span>🗺️ Skill-by-skill roadmaps</span>
+          <span>📅 Daily study planner</span>
+        </div>
+      </div>
+
+      <!-- dashboard preview mock -->
+      <div class="mock">
+        <div class="mock-bar"><i></i><i></i><i></i></div>
+        <div class="mock-body">
+          <div class="mock-row">
+            <div class="mock-cell"><div class="k">Daily Goal</div><div class="v">90 min</div></div>
+            <div class="mock-cell"><div class="k">Completed</div><div class="v" style="color:var(--success)">45 min</div></div>
+            <div class="mock-cell"><div class="k">Streak</div><div class="v">🔥 12d</div></div>
+          </div>
+          <div class="mock-list">
+            <div class="mock-item done"><span class="tick">✓</span>GROUP BY + HAVING — 30 min</div>
+            <div class="mock-item"><span class="tick" style="background:var(--primary-light);color:var(--primary-dark)">▶</span>SQL JOIN Practice — 45 min</div>
+            <div class="mock-item"><span class="tick" style="background:var(--primary-light);color:var(--primary-dark)">▶</span>SQL Mini Project — 60 min</div>
+          </div>
+          <div class="progress" style="margin-top:4px"><span style="width:65%"></span></div>
+          <div class="small muted">Data Analyst roadmap — 65% complete</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== WHY CAREER MATE ===== -->
+  <section class="section" id="features">
+    <div class="section-head">
+      <div class="eyebrow">Why Career Mate?</div>
+      <h2>Everything a student needs, in one place</h2>
+      <p>No more juggling five apps. Your syllabus, career plan and daily tasks live together.</p>
+    </div>
+    <div class="grid-4">
+      <div class="feature-card">
+        <div class="f-icon">📚</div>
+        <h3>Organized Study Material</h3>
+        <p>Syllabus, PYQs, notes and lab material — organized by your university, semester and subject.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">🗺️</div>
+        <h3>Career Roadmaps</h3>
+        <p>Step-by-step skill paths for Data Analyst, Backend, Full Stack and more — in the right order.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">📅</div>
+        <h3>Daily Study Planner</h3>
+        <p>Your roadmap becomes small daily tasks that fit the time you actually have.</p>
+      </div>
+      <div class="feature-card">
+        <div class="f-icon">📈</div>
+        <h3>Smart Progress Tracking</h3>
+        <p>Streaks, weekly charts and skill completion show exactly how far you've come.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== PROBLEM ===== -->
+  <section class="section" id="problem">
+    <div class="problem-band">
+      <div>
+        <div class="badge badge-green" style="margin-bottom:12px">The Problem</div>
+        <h2>Students study in chaos.</h2>
+        <p>
+          Notes ek jagah (Telegram), PYQs doosri jagah (WhatsApp), lectures YouTube pe,
+          aur career guidance random websites pe. Result? Time waste, confusion, aur zero structure.
+        </p>
+      </div>
+      <div class="chaos-list">
+        <div class="chaos-item">📨 Telegram groups for notes</div>
+        <div class="chaos-item">💬 WhatsApp for PYQs</div>
+        <div class="chaos-item">📺 YouTube for lectures</div>
+        <div class="chaos-item">🌐 Random sites for guidance</div>
+        <div class="chaos-item fix">✅ Career Mate — all of it, organized in one platform</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== ROADMAP PREVIEW ===== -->
+  <section class="section" id="roadmap-preview">
+    <div class="section-head">
+      <div class="eyebrow">How it works</div>
+      <h2>Goal → Roadmap → Daily Actions</h2>
+      <p>Pick a career. We break it into skills, then into daily tasks you can actually finish.</p>
+    </div>
+    <div class="grid-2" style="align-items:center">
+      <div class="roadmap-strip">
+        <div class="node ok">Excel ✓</div>
+        <div class="arrow">↓</div>
+        <div class="node ok">SQL ✓</div>
+        <div class="arrow">↓</div>
+        <div class="node hot">Statistics — in progress</div>
+        <div class="arrow">↓</div>
+        <div class="node dim">Python 🔒</div>
+        <div class="arrow">↓</div>
+        <div class="node dim">Pandas 🔒</div>
+        <div class="arrow">↓</div>
+        <div class="node dim">Projects 🔒</div>
+      </div>
+      <div class="feature-card" style="padding:28px">
+        <h3 style="font-size:1.2rem">Never fall behind silently</h3>
+        <p style="margin-top:10px">
+          Miss a day? Career Mate doesn't delete your tasks. It intelligently moves them to
+          future days — without ever loading you with more than 120% of your daily capacity.
+        </p>
+        <div class="badge badge-amber" style="margin-top:16px">📦 1 unfinished task moved to Saturday</div>
+        <p class="small muted" style="margin-top:18px">
+          Prerequisite-first scheduling means you always learn skills in the right order —
+          no advanced topic before its basics.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA ===== -->
+  <section class="section">
+    <div class="cta-band">
+      <h2>Ready to build your career?</h2>
+      <p>Join thousands of BCA & B.Tech students turning their goals into daily action.</p>
+      <a class="btn btn-lg" href="register.html">Start Your Journey — Free</a>
+    </div>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="landing-footer">
+    <p><strong>Career Mate</strong> — Education + Career Roadmap + Daily Planner + Progress + Community</p>
+    <p class="small" style="margin-top:6px">BCA & B.Tech students ke liye banaya gaya — apna account banakar shuru karein.</p>
+  </footer>
+
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script>
+    /* navbar menu dropdown */
+    const menuBtn = document.getElementById('nav-menu-btn');
+    const menuDrop = document.getElementById('nav-dropdown');
+    menuBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      menuDrop.classList.toggle('open');
+      menuBtn.classList.toggle('open');
+    });
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.nav-menu-wrap')) {
+        menuDrop.classList.remove('open');
+        menuBtn.classList.remove('open');
+      }
+    });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') {
+        menuDrop.classList.remove('open');
+        menuBtn.classList.remove('open');
+      }
+    });
+
+    /* if already logged in, nudge to dashboard; visitors only see landing */
+    Store.load();
+    if (Store.user()) {
+      document.querySelectorAll('.landing-nav .btn, .hero-cta .btn').forEach(b => {
+        b.textContent = 'Open Dashboard';
+        b.href = 'dashboard.html';
+      });
+    }
+  </script>
+</body>
+</html>

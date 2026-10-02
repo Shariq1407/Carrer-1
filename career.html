@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Careers — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('career', { title: 'Career' });
+
+    const content = document.querySelector('.content');
+    content.innerHTML =
+      '<div class="content-head"><div>' +
+        '<h1>Choose the Career You Want to Build.</h1>' +
+        '<p>Har career ka complete skill roadmap — correct order mein, with time estimates.</p>' +
+      '</div></div>' +
+      '<div class="career-grid" id="career-grid"></div>';
+
+    function renderCareers() {
+      $('#career-grid').innerHTML = CM_CAREERS.map(c => {
+        const isGoal = user.goalId === c.id;
+        const done = isGoal ? user.completedSkills.length : 0;
+        return '<div class="career-card' + (isGoal ? '" style="border-color:var(--primary)' : '') + '">' +
+          '<div class="c-ico">' + c.icon + '</div>' +
+          '<h3>' + escapeHtml(c.name) + (isGoal ? ' <span class="badge badge-blue">Your Goal</span>' : '') + '</h3>' +
+          '<p>' + escapeHtml(c.desc) + '</p>' +
+          '<div class="skill-tags">' + c.skills.map(s => '<span>' + escapeHtml(s) + '</span>').join('') + '</div>' +
+          '<div class="c-stats">' +
+            '<span>🎯 ' + c.difficulty + '</span>' +
+            '<span>⏱ ~' + c.months + ' months</span>' +
+            '<span>🧩 ' + c.roadmap.length + ' skills</span>' +
+          '</div>' +
+          (isGoal
+            ? '<div class="progress thin" style="margin:4px 0"><span style="width:' + (user.goalProgress || 0) + '%"></span></div>' +
+              '<div class="small muted">' + done + '/' + c.roadmap.length + ' skills done</div>'
+            : '') +
+          '<a class="btn ' + (isGoal ? 'btn-outline' : 'btn-primary') + '" href="roadmap.html?career=' + c.id + '"' +
+            (isGoal ? '' : ' data-set-goal="' + c.id + '"') + '>Explore Roadmap →</a>' +
+        '</div>';
+      }).join('');
+    }
+
+    /* non-goal careers confirm on click */
+    $('#career-grid').addEventListener('click', e => {
+      const b = e.target.closest('[data-set-goal]');
+      if (!b) return;
+      e.preventDefault();
+      const careerId = b.dataset.setGoal;
+      const c = Store.careerById(careerId);
+      openModal(
+        '<h3>' + c.icon + ' Set "' + escapeHtml(c.name) + '" as your goal?</h3>' +
+        '<p class="muted small">Roadmap aur daily planner isi goal ke hisaab se update ho jayenge. Aapka current progress safe rahega.</p>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
+          '<button class="btn btn-primary" id="confirm-goal">Yes, Set Goal</button>' +
+        '</div>');
+      $('#confirm-goal').onclick = () => {
+        Store.update({ goalId: careerId });
+        Store.pushNotif('🎯', 'New goal set: ' + c.name + '. Roadmap ready!');
+        closeModal();
+        toast('Goal updated 🎯');
+        setTimeout(() => location.href = 'roadmap.html?career=' + careerId, 400);
+      };
+    });
+
+    renderCareers();
+  </script>
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('dashboard', { title: 'Dashboard' });
+
+    /* falling-behind engine: reschedule overdue tasks on dashboard load */
+    const movedList = Store.rescheduleRun();
+
+    const career = Store.activeGoal();
+    const goalPct = user.goalProgress || 0;
+    const planned = Store.plannedMinutes(0);
+    const doneM = Store.doneMinutes(0);
+    const remaining = Math.max(0, planned - doneM);
+    const streak = Store.streakInfo();
+    const today = Store.todayTasks(0);
+
+    const hour = new Date().getHours();
+    const greet = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
+
+    document.querySelector('.content').innerHTML =
+      /* welcome band */
+      '<div class="welcome-band">' +
+        '<div>' +
+          '<h2>' + greet + ', ' + escapeHtml(user.fullName.split(' ')[0]) + ' 👋</h2>' +
+          '<p>Let\'s continue your career journey.</p>' +
+        '</div>' +
+        (career
+          ? '<div class="goal-pill">' + career.icon + ' Goal: ' + career.name + ' · ' + goalPct + '%</div>'
+          : '<a class="btn btn-sm" style="background:#fff;color:var(--primary-dark)" href="career.html">+ Set a Career Goal</a>') +
+      '</div>' +
+
+      /* moved-task alert */
+      (movedList.length
+        ? '<div class="card" style="border-color:var(--warning);background:var(--warning-light);margin-bottom:18px">' +
+            '<strong>📦 ' + movedList.length + ' unfinished task' + (movedList.length > 1 ? 's' : '') + ' rescheduled.</strong> ' +
+            '<span class="small">Workload never exceeds 120% of your daily capacity.</span>' +
+          '</div>'
+        : '') +
+
+      /* stat cards */
+      '<div class="stat-grid">' +
+        '<div class="stat-card"><div class="label">Current Goal</div><div class="value">' + goalPct + '%</div>' +
+          '<div class="sub">' + (career ? escapeHtml(career.name) : 'No goal set') + '</div>' +
+          '<div class="progress thin" style="margin-top:8px"><span style="width:' + goalPct + '%"></span></div></div>' +
+        '<div class="stat-card"><div class="label">Today\'s Study</div><div class="value">' + fmtMin(doneM) + '</div>' +
+          '<div class="sub">Planned ' + fmtMin(planned) + ' · Remaining ' + fmtMin(remaining) + '</div>' +
+          '<div class="progress thin" style="margin-top:8px"><span style="width:' + (planned ? doneM / planned * 100 : 0) + '%"></span></div></div>' +
+        '<div class="stat-card"><div class="label">Current Streak</div><div class="value">🔥 ' + streak.current + '</div>' +
+          '<div class="sub">Longest: ' + streak.longest + ' days</div></div>' +
+        '<div class="stat-card"><div class="label">Skills Completed</div><div class="value">' +
+          (career ? user.completedSkills.length + '/' + career.roadmap.length : '0') + '</div>' +
+          '<div class="sub">' + (career ? 'on ' + escapeHtml(career.name) + ' path' : '') + '</div></div>' +
+      '</div>' +
+
+      '<div class="dash-grid">' +
+        '<div class="col">' +
+
+          /* today's tasks */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>Today\'s Tasks</h3>' +
+              '<a class="btn btn-sm btn-ghost" href="planner.html">Open Planner →</a></div>' +
+            (today.length
+              ? today.map(t => renderTaskRow(t)).join('')
+              : '<p class="muted">No tasks today. <a href="roadmap.html">Pick a skill to study →</a></p>') +
+          '</div>' +
+
+          /* overdue rescheduler card */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>Falling Behind? Auto-Reschedule</h3></div>' +
+            '<p class="muted small">Missed tasks are moved forward — never deleted — while keeping daily workload ≤ 120% of your capacity (' +
+              fmtMin(Math.round(user.dailyMinutes * 1.2)) + ' max).</p>' +
+            '<button class="btn btn-outline btn-sm" id="demo-resched" style="margin-top:12px">Check Overdue Tasks</button>' +
+            '<div id="resched-out" class="small" style="margin-top:10px"></div>' +
+          '</div>' +
+
+        '</div>' +
+        '<div class="col">' +
+
+          /* roadmap mini */
+          (career
+            ? '<div class="card">' +
+                '<div class="card-title-row"><h3>' + career.icon + ' ' + escapeHtml(career.name) + ' Roadmap</h3>' +
+                  '<a class="btn btn-sm btn-ghost" href="roadmap.html">Open →</a></div>' +
+                '<div class="roadmap-strip">' +
+                  career.roadmap.map(n => {
+                    const st = Store.skillState(career.id, n.id);
+                    return '<div class="node ' + (st === 'completed' ? 'ok' : st === 'inprogress' ? 'hot' : 'dim') + '">' +
+                      escapeHtml(n.name) + (st === 'completed' ? ' ✓' : st === 'locked' ? ' 🔒' : '') + '</div>' +
+                      '<div class="arrow">↓</div>';
+                  }).join('').replace(/<div class="arrow">↓<\/div>$/, '') +
+                '</div>' +
+              '</div>'
+            : '<div class="card"><h3>No roadmap yet</h3><p class="muted small">Choose a career to build your roadmap.</p>' +
+              '<a class="btn btn-primary btn-sm" style="margin-top:10px" href="career.html">Explore Careers</a></div>') +
+
+          /* weekly snapshot */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>This Week</h3></div>' +
+            '<div class="bar-chart" id="week-chart"></div>' +
+          '</div>' +
+
+        '</div>' +
+      '</div>';
+
+    /* weekly chart: last 7 days minutes done */
+    const wk = [];
+    for (let d = -6; d <= 0; d++) {
+      const mins = Store.tasks
+        .filter(t => t.userId === user.id && t.date === d && t.done)
+        .reduce((s, t) => s + t.minutes, 0);
+      wk.push({ label: prettyDate(d).split(',')[0], value: mins, dim: d < 0 && mins === 0 });
+    }
+    barChart($('#week-chart'), wk);
+
+    /* demo reschedule checker */
+    $('#demo-resched').onclick = () => {
+      const od = Store.overdueTasks(0);
+      const out = $('#resched-out');
+      if (!od.length) { out.innerHTML = '✅ No overdue tasks — you\'re on track!'; return; }
+      out.innerHTML = 'Found <strong>' + od.length + ' overdue task(s)</strong>. ' +
+        'Open the Daily Planner to auto-reschedule them →';
+      toast(od.length + ' overdue task(s) found');
+    };
+
+    bindTaskActions();
+  </script>
+</body>
+</html>

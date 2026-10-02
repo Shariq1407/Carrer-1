@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roadmap — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('roadmap', { title: 'Roadmaps' });
+
+    /* which career */
+    const params = new URLSearchParams(location.search);
+    let careerId = params.get('career') || user.goalId || CM_CAREERS[0].id;
+    let career = Store.careerById(careerId) || CM_CAREERS[0];
+
+    const content = document.querySelector('.content');
+
+    function render() {
+      const done = user.goalId === career.id ? user.completedSkills.length : 0;
+      const pct = user.goalId === career.id
+        ? Math.round(done / career.roadmap.length * 100) : 0;
+
+      content.innerHTML =
+        /* career switcher */
+        '<div class="crumbs" style="row-gap:8px">' +
+          CM_CAREERS.map(c =>
+            '<button class="btn btn-sm ' + (c.id === career.id ? 'btn-primary' : 'btn-outline') + '" data-switch="' + c.id + '">' +
+              c.icon + ' ' + c.name + '</button>').join('') +
+        '</div>' +
+
+        '<div class="card" style="margin-bottom:20px;display:flex;gap:18px;align-items:center;flex-wrap:wrap">' +
+          '<div style="font-size:2.2rem">' + career.icon + '</div>' +
+          '<div style="flex:1;min-width:200px">' +
+            '<h2>' + escapeHtml(career.name) + ' Roadmap</h2>' +
+            '<p class="muted small">' + escapeHtml(career.desc) + '</p>' +
+          '</div>' +
+          '<div style="text-align:right;min-width:150px">' +
+            '<div class="stat-card" style="padding:10px 16px;box-shadow:none;border:none">' +
+              '<div class="label">' + (user.goalId === career.id ? 'Your Progress' : 'Total Duration') + '</div>' +
+              '<div class="value">' + (user.goalId === career.id ? pct + '%' : '~' + career.months + ' mo') + '</div>' +
+            '</div>' +
+          '</div>' +
+          (user.goalId !== career.id
+            ? '<button class="btn btn-primary" id="set-goal">Set as My Goal</button>' : '') +
+        '</div>' +
+
+        /* legend */
+        '<div class="crumbs" style="margin-bottom:14px">' +
+          '<span class="badge badge-gray">Not Started</span>' +
+          '<span class="badge badge-amber">In Progress</span>' +
+          '<span class="badge badge-green">Completed</span>' +
+          '<span class="badge badge-gray">🔒 = locked (prerequisites pending)</span>' +
+        '</div>' +
+
+        /* timeline */
+        '<div class="roadmap-flow">' +
+          career.roadmap.map((n, i) => {
+            const isGoal = user.goalId === career.id;
+            const st = isGoal ? Store.skillState(career.id, n.id) : 'locked';
+            const prereq = i === 0 ? 'None' : career.roadmap[i - 1].name;
+            let badge, actions = '';
+            if (st === 'completed') badge = '<span class="badge badge-green">Completed</span>';
+            else if (st === 'inprogress') badge = '<span class="badge badge-amber">In Progress</span>';
+            else badge = '<span class="badge badge-gray">🔒 Not Started</span>';
+
+            if (isGoal && st === 'inprogress') {
+              actions = '<button class="btn btn-sm btn-primary" data-complete="' + n.id + '">Mark Completed ✓</button>';
+            } else if (isGoal && st === 'locked') {
+              actions = '<button class="btn btn-sm btn-outline" disabled>Locked</button>';
+            } else if (isGoal && st === 'completed') {
+              actions = '<button class="btn btn-sm btn-ghost" disabled>✓ Done</button>';
+            } else {
+              actions = '<a class="btn btn-sm btn-outline" href="career.html">Set as goal to track</a>';
+            }
+
+            return '<div class="rnode ' + st + '">' +
+              '<div class="rn-top">' +
+                '<div class="rn-num">' + (st === 'completed' ? '✓' : i + 1) + '</div>' +
+                '<div>' +
+                  '<div class="rn-name">' + escapeHtml(n.name) + '</div>' +
+                  '<div class="rn-meta">' +
+                    '<span>⏱ ~' + n.weeks + ' weeks</span>' +
+                    '<span>📌 Prereq: ' + escapeHtml(prereq) + '</span>' +
+                  '</div>' +
+                '</div>' +
+                '<div class="rn-actions">' + badge + actions + '</div>' +
+              '</div>' +
+              '<p class="muted small" style="margin-top:8px">' + escapeHtml(n.desc) + '</p>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+
+      /* events */
+      $$('[data-switch]').forEach(b => b.onclick = () => {
+        careerId = b.dataset.switch;
+        career = Store.careerById(careerId);
+        history.replaceState(null, '', 'roadmap.html?career=' + careerId);
+        render();
+      });
+
+      const sg = $('#set-goal');
+      if (sg) sg.onclick = () => {
+        Store.update({ goalId: career.id });
+        Store.pushNotif('🎯', 'New goal set: ' + career.name + '. Roadmap ready!');
+        toast('Goal set 🎯');
+        setTimeout(() => location.reload(), 350);
+      };
+
+      $$('[data-complete]').forEach(b => b.onclick = () => {
+        const ok = Store.completeSkill(career.id, b.dataset.complete);
+        if (ok) {
+          const next = career.roadmap.find(n => Store.skillState(career.id, n.id) === 'inprogress');
+          toast('Skill completed! 🎉' + (next ? ' Next: ' + next.name : ''));
+          setTimeout(() => location.reload(), 500);
+        }
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>

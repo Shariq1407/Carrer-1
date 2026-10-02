@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Goals — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('goals', { title: 'Goals' });
+
+    const content = document.querySelector('.content');
+
+    function render() {
+      const career = Store.activeGoal();
+      let html = '<div class="content-head"><div><h1>Your Goals</h1>' +
+        '<p>Goal → roadmap progress → daily actions. Ek waqt mein ek active goal.</p></div>' +
+        '<button class="btn btn-primary" id="new-goal">+ Create Goal</button></div>';
+
+      if (career) {
+        const completed = user.completedSkills.length;
+        const total = career.roadmap.length;
+        const inProg = user.inProgressSkills.filter(s => !user.completedSkills.includes(s));
+        const remainingSkills = career.roadmap.filter(n => !user.completedSkills.includes(n.id));
+        const deadlineDays = Math.max(1, career.months * 30);
+        const weekDone = Store.tasks
+          .filter(t => t.userId === user.id && t.done && t.date >= -7 && t.date <= 0).length;
+
+        html += '<div class="card" style="margin-bottom:20px">' +
+          '<div style="display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap">' +
+            '<div style="font-size:2.4rem">' + career.icon + '</div>' +
+            '<div style="flex:1;min-width:220px">' +
+              '<div class="badge badge-blue" style="margin-bottom:8px">Active Goal</div>' +
+              '<h2>Become a ' + escapeHtml(career.name) + '</h2>' +
+              '<p class="muted small" style="margin-top:6px">' + escapeHtml(career.desc) + '</p>' +
+            '</div>' +
+            '<div style="display:flex;gap:8px;flex-wrap:wrap">' +
+              '<a class="btn btn-outline btn-sm" href="roadmap.html">Edit Roadmap</a>' +
+              '<button class="btn btn-outline btn-sm" id="pause-goal">Pause</button>' +
+              '<button class="btn btn-primary btn-sm" id="complete-goal">Complete Goal</button>' +
+            '</div>' +
+          '</div>' +
+
+          '<div class="stat-grid" style="margin-top:20px">' +
+            '<div class="stat-card"><div class="label">Progress</div><div class="value">' + (user.goalProgress || 0) + '%</div>' +
+              '<div class="progress thin" style="margin-top:8px"><span style="width:' + (user.goalProgress || 0) + '%"></span></div></div>' +
+            '<div class="stat-card"><div class="label">Deadline</div><div class="value">' + deadlineDays + ' days</div><div class="sub">~' + career.months + ' months target</div></div>' +
+            '<div class="stat-card"><div class="label">Daily Target</div><div class="value">' + fmtMin(user.dailyMinutes) + '</div><div class="sub">study time per day</div></div>' +
+            '<div class="stat-card"><div class="label">Tasks This Week</div><div class="value">' + weekDone + '</div><div class="sub">completed</div></div>' +
+          '</div>' +
+
+          '<div class="grid-2" style="margin-top:6px">' +
+            '<div>' +
+              '<h3 style="margin-bottom:10px">✅ Completed Skills (' + completed + ')</h3>' +
+              (completed
+                ? '<div class="skill-tags">' + user.completedSkills.map(id => {
+                    const n = career.roadmap.find(x => x.id === id);
+                    return n ? '<span>' + escapeHtml(n.name) + '</span>' : '';
+                  }).join('') + '</div>'
+                : '<p class="muted small">None yet — start today\'s tasks!</p>') +
+            '</div>' +
+            '<div>' +
+              '<h3 style="margin-bottom:10px">⏳ Remaining Skills (' + remainingSkills.length + ')</h3>' +
+              '<div class="skill-tags">' + remainingSkills.slice(0, 6).map(n =>
+                '<span>' + escapeHtml(n.name) + ' · ~' + n.weeks + 'w</span>').join('') +
+                (remainingSkills.length > 6 ? '<span>+' + (remainingSkills.length - 6) + ' more</span>' : '') + '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+
+        /* weekly progress bars */
+        html += '<div class="card"><div class="card-title-row"><h3>📈 Weekly Progress</h3></div>' +
+          '<div class="bar-chart" id="goal-week"></div></div>';
+      } else {
+        html += '<div class="card center" style="padding:48px">' +
+          '<h2>No active goal</h2>' +
+          '<p class="muted" style="margin:10px 0 20px">Ek career choose karo — roadmap aur planner auto-generate ho jayega.</p>' +
+          '<a class="btn btn-primary" href="career.html">Explore Careers</a></div>';
+      }
+
+      content.innerHTML = html;
+
+      /* weekly chart */
+      const gw = $('#goal-week');
+      if (gw) {
+        const wk = [];
+        for (let d = -6; d <= 0; d++) {
+          const mins = Store.tasks
+            .filter(t => t.userId === user.id && t.date === d && t.done)
+            .reduce((s, t) => s + t.minutes, 0);
+          wk.push({ label: prettyDate(d).split(',')[0], value: mins, dim: d < 0 && mins === 0 });
+        }
+        barChart(gw, wk);
+      }
+
+      $('#new-goal').onclick = () => location.href = 'career.html';
+      const pg = $('#pause-goal');
+      if (pg) pg.onclick = () => openModal(
+        '<h3>⏸ Pause Goal?</h3>' +
+        '<p class="muted small">Daily task generation ruk jayegi. Progress safe rahega — kabhi bhi resume kar sakte ho.</p>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-outline" onclick="closeModal()">Keep Active</button>' +
+          '<button class="btn btn-primary" id="do-pause">Pause</button></div>');
+      const dp = $('#do-pause');
+      if (dp) dp.onclick = () => {
+        closeModal();
+        toast('Goal paused (demo) ⏸');
+      };
+      const cg = $('#complete-goal');
+      if (cg) cg.onclick = () => openModal(
+        '<h3>🏆 Complete Goal?</h3>' +
+        '<p class="muted small">Saare skills completed mark ho jayenge aur profile pe badge milega.</p>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-outline" onclick="closeModal()">Not Yet</button>' +
+          '<button class="btn btn-primary" id="do-complete">Yes, Complete</button></div>');
+      const dc = $('#do-complete');
+      if (dc) dc.onclick = () => {
+        Store.completeGoal();
+        closeModal();
+        toast('Congratulations! 🏆');
+        setTimeout(() => location.reload(), 400);
+      };
+    }
+
+    render();
+  </script>
+</body>
+</html>

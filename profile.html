@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Profile — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('profile', { title: 'Profile' });
+
+    const content = document.querySelector('.content');
+    const career = Store.activeGoal();
+
+    function progName(id) { const p = CM_PROGRAMS.find(x => x.id === id); return p ? p.name : 'B.Tech CSE'; }
+    function uniShort(id) { const u = CM_UNIVERSITIES.find(x => x.id === id); return u ? u.short : id; }
+
+    content.innerHTML =
+      '<div class="content-head"><div><h1>Professional Profile</h1>' +
+        '<p>Simple portfolio-style profile — placements aur networking ke liye.</p></div>' +
+        '<button class="btn btn-outline" id="edit-profile">✏️ Edit Profile</button></div>' +
+
+      /* head card */
+      '<div class="card" style="margin-bottom:18px">' +
+        '<div class="profile-head">' +
+          '<div class="profile-avatar">' + escapeHtml(user.fullName.charAt(0)) + '</div>' +
+          '<div style="flex:1;min-width:220px">' +
+            '<div class="p-name">' + escapeHtml(user.fullName) +
+              (user.verified ? ' <span class="badge-verified">✔ Verified Student</span>' : '') + '</div>' +
+            '<div class="p-sub">' + progName(user.program) + ' · ' + uniShort(user.university) + ' · Semester ' + user.semester + '</div>' +
+            '<div class="p-sub">🎯 Goal: ' + (career ? escapeHtml(career.name) : 'Not set') + '</div>' +
+          '</div>' +
+          '<div style="text-align:right">' +
+            '<div class="stat-card" style="box-shadow:none;border:none;text-align:right;padding:8px">' +
+              '<div class="label">Member Since</div><div class="value" style="font-size:1.1rem">' + (user.registeredOn || '—') + '</div></div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+
+      '<div class="dash-grid">' +
+        '<div class="col">' +
+
+          /* skills */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🧩 Skills</h3>' +
+              '<button class="btn btn-sm btn-ghost" id="add-skill">+ Add</button></div>' +
+            '<div class="skill-tags" id="skill-tags">' +
+              ((user.profileSkills || ['SQL', 'Excel', 'C/C++', 'HTML/CSS']).map(s => '<span>' + escapeHtml(s) + '</span>').join('')) +
+            '</div>' +
+          '</div>' +
+
+          /* projects */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🛠 Projects</h3></div>' +
+            '<div class="topic-list">' +
+              '<div class="topic-item"><span class="unit">2025</span><span style="flex:1">Sales Insights Dashboard — Power BI + SQL</span><span class="badge badge-green">Completed</span></div>' +
+              '<div class="topic-item"><span class="unit">2025</span><span style="flex:1">Student Study Tracker — JS Web App</span><span class="badge badge-green">Completed</span></div>' +
+              '<div class="topic-item"><span class="unit">2026</span><span style="flex:1">E-commerce SQL Database Design</span><span class="badge badge-amber">In Progress</span></div>' +
+            '</div>' +
+          '</div>' +
+
+          /* certificates */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>📜 Certificates</h3></div>' +
+            '<div class="topic-list">' +
+              '<div class="topic-item"><span class="unit">📄</span>SQL for Data Analysis — Online Course</div>' +
+              '<div class="topic-item"><span class="unit">📄</span>Excel Fundamentals — Online Course</div>' +
+            '</div>' +
+          '</div>' +
+
+        '</div>' +
+
+        '<div class="col">' +
+
+          /* resume */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>📄 Resume</h3></div>' +
+            '<p class="muted small">1-page resume, latest upload.</p>' +
+            '<div class="res-actions" style="margin-top:10px">' +
+              '<button class="btn btn-sm btn-primary" id="upload-resume">⬆ Upload Resume</button>' +
+              '<button class="btn btn-sm btn-outline" id="view-resume">View</button>' +
+            '</div>' +
+          '</div>' +
+
+          /* achievements */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🏆 Achievements & Badges</h3></div>' +
+            '<div class="skill-tags">' +
+              '<span>🔥 ' + streakLabel() + '</span>' +
+              '<span>✅ 50+ tasks done</span>' +
+              '<span>📊 SQL completed</span>' +
+              (user.verified ? '<span>✔ Verified</span>' : '<span>⏳ Verification pending</span>') +
+            '</div>' +
+          '</div>' +
+
+          /* links */
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🔗 Links</h3></div>' +
+            '<div class="topic-list">' +
+              '<div class="topic-item"><span class="unit">🐙</span><a href="#" onclick="toast(\'GitHub (demo link)\');return false">github.com/' +
+                escapeHtml(user.fullName.split(' ')[0].toLowerCase()) + '</a></div>' +
+              '<div class="topic-item"><span class="unit">💼</span><a href="#" onclick="toast(\'LinkedIn (demo link)\');return false">linkedin.com/in/' +
+                escapeHtml(user.fullName.split(' ')[0].toLowerCase()) + '</a></div>' +
+            '</div>' +
+          '</div>' +
+
+        '</div>' +
+      '</div>';
+
+    function streakLabel() { const s = Store.streakInfo(); return s.current + '-day streak'; }
+
+    /* edit modal */
+    $('#edit-profile').onclick = () => openModal(
+      '<h3>Edit Profile</h3>' +
+      '<div class="form-field"><label>Full Name</label><input id="ep-name" value="' + escapeHtml(user.fullName) + '"></div>' +
+      '<div class="form-row">' +
+        '<div class="form-field"><label>Semester</label><input id="ep-sem" type="number" min="1" max="8" value="' + user.semester + '"></div>' +
+        '<div class="form-field"><label>GitHub Username</label><input id="ep-git" value="' + escapeHtml(user.fullName.split(' ')[0].toLowerCase()) + '"></div>' +
+      '</div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
+        '<button class="btn btn-primary" id="ep-save">Save</button></div>');
+    $('#ep-save') && ($('#ep-save').onclick = () => {
+      const name = $('#ep-name').value.trim();
+      if (name) Store.update({ fullName: name });
+      closeModal();
+      toast('Profile updated ✅');
+      setTimeout(() => location.reload(), 350);
+    });
+
+    $('#add-skill').onclick = () => openModal(
+      '<h3>Add Skill</h3>' +
+      '<div class="form-field"><input id="sk-name" placeholder="e.g. Python"></div>' +
+      '<div class="modal-actions">' +
+        '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
+        '<button class="btn btn-primary" id="sk-save">Add</button></div>');
+    $('#sk-save').onclick = () => {
+      const sk = $('#sk-name').value.trim();
+      if (!sk) { toast('Skill name required'); return; }
+      const cur = user.profileSkills || ['SQL', 'Excel', 'C/C++', 'HTML/CSS'];
+      Store.update({ profileSkills: cur.concat([sk]) });
+      closeModal();
+      toast('Skill added ✅');
+      setTimeout(() => location.reload(), 350);
+    };
+
+    $('#upload-resume').onclick = () => toast('Resume upload (demo) ⬆');
+    $('#view-resume').onclick = () => toast('Opening resume… (demo)');
+  </script>
+</body>
+</html>

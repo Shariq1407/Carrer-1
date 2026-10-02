@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+
+    /* role gate — backend-style enforcement (client demo mirrors it) */
+    if (user && user.role !== 'admin' && user.role !== 'moderator') {
+      document.body.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;padding:20px">' +
+        '<div><h1>403 — Access Denied</h1>' +
+        '<p class="muted" style="margin:10px 0 18px">Yeh area sirf Admins aur Moderators ke liye hai.</p>' +
+        '<a class="btn btn-primary" href="dashboard.html">← Back to Dashboard</a></div></div>';
+      throw new Error('forbidden');
+    }
+
+    initShell('admin', { title: 'Admin Dashboard' });
+    const content = document.querySelector('.content');
+    const admin = Store.admin;
+
+    let tab = 'overview';
+
+    const TABS = [
+      ['overview', '📊 Overview'],
+      ['users', '👥 Users'],
+      ['curriculum', '🏛 Curriculum'],
+      ['resources', '📥 Resource Approvals'],
+      ['moderation', '🚩 Moderation'],
+      ['roadmaps', '🗺 Roadmaps'],
+      ['roles', '🔐 Roles & Permissions'],
+      ['audit', '📋 Audit Logs']
+    ];
+
+    function render() {
+      let html = '<div class="crumbs" style="row-gap:8px;margin-bottom:18px">' +
+        TABS.map(t =>
+          '<button class="btn btn-sm ' + (tab === t[0] ? 'btn-primary' : 'btn-outline') + '" data-tab="' + t[0] + '">' +
+          t[1] + '</button>').join('') +
+      '</div>';
+
+      /* ---------- OVERVIEW ---------- */
+      if (tab === 'overview') {
+        const students = Store.users.filter(u => u.role === 'student');
+        html += '<div class="stat-grid">' +
+          stat('Total Users', Store.users.length, 'all roles') +
+          stat('Active Students', students.length, 'with goals: ' + students.filter(s => s.goalId).length) +
+          stat('Verified Students', Store.users.filter(u => u.verified).length, 'badge holders') +
+          stat('Pending Approvals', admin.pendingResources.length, 'resources') +
+          stat('Reported Posts', admin.reportedPosts.length, 'need review') +
+          stat('Total Courses', CM_PROGRAMS.length + ' × ' + CM_SEMESTERS.length + ' sems', 'programs × semesters') +
+          stat('Total Resources', CM_RESOURCES.length, 'public library') +
+          stat('Roadmap Tracks', CM_CAREERS.length, 'career paths') +
+        '</div>' +
+
+        '<div class="dash-grid">' +
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>📥 Pending Approvals</h3></div>' +
+            pendingTable() +
+          '</div>' +
+          '<div class="card">' +
+            '<div class="card-title-row"><h3>🚩 Reported Posts</h3></div>' +
+            reportsTable() +
+          '</div>' +
+        '</div>';
+      }
+
+      /* ---------- USERS ---------- */
+      if (tab === 'users') {
+        html += '<div class="card"><div class="card-title-row"><h2>All Users</h2></div>' +
+          '<div class="table-wrap"><table class="data"><thead><tr>' +
+          '<th>Name</th><th>Email</th><th>Program</th><th>University</th><th>Role</th><th>Verified</th><th>Actions</th>' +
+          '</tr></thead><tbody>' +
+          Store.users.map(u =>
+            '<tr><td><strong>' + escapeHtml(u.fullName) + '</strong></td>' +
+            '<td>' + escapeHtml(u.email) + '</td>' +
+            '<td>' + (u.program ? CM_PROGRAMS.find(p => p.id === u.program) ? CM_PROGRAMS.find(p => p.id === u.program).name : u.program : '—') + '</td>' +
+            '<td>' + (u.university ? (CM_UNIVERSITIES.find(x => x.id === u.university) || { short: u.university }).short : '—') + '</td>' +
+            '<td><span class="badge ' + (u.role === 'admin' ? 'badge-purple' : u.role === 'moderator' ? 'badge-amber' : 'badge-gray') + '">' + u.role + '</span></td>' +
+            '<td>' + (u.verified ? '<span class="badge badge-green">✔</span>' : '<span class="badge badge-gray">—</span>') + '</td>' +
+            '<td style="white-space:nowrap">' +
+              (user.role === 'admin'
+                ? '<select data-role-user="' + u.id + '" style="padding:6px;border:1px solid var(--border);border-radius:8px;margin-right:6px">' +
+                  ['student', 'moderator', 'admin'].map(r =>
+                    '<option value="' + r + '"' + (u.role === r ? ' selected' : '') + '>' + r + '</option>').join('') + '</select>'
+                : '') +
+              (!u.verified ? '<button class="btn btn-sm btn-outline" data-verify="' + u.id + '">Verify</button>' : '') +
+            '</td></tr>').join('') +
+          '</tbody></table></div></div>' +
+          '<p class="muted small" style="margin-top:10px">Permissions backend-enforced hain: moderators sirf approvals/moderation kar sakte hain; roles sirf Super Admin change kar sakta hai.</p>';
+      }
+
+      /* ---------- CURRICULUM ---------- */
+      if (tab === 'curriculum') {
+        html += '<div class="dash-grid">' +
+          '<div class="card"><div class="card-title-row"><h3>🏛 Universities (' + CM_UNIVERSITIES.length + ')</h3></div>' +
+            '<div class="topic-list">' + CM_UNIVERSITIES.map(u =>
+              '<div class="topic-item"><span class="unit">' + u.short + '</span>' + escapeHtml(u.name) + '</div>').join('') + '</div></div>' +
+          '<div class="card"><div class="card-title-row"><h3>🎓 Programs (' + CM_PROGRAMS.length + ')</h3></div>' +
+            '<div class="topic-list">' + CM_PROGRAMS.map(p =>
+              '<div class="topic-item"><span class="unit">' + p.icon + '</span>' + p.name +
+              '<span class="badge badge-gray" style="margin-left:auto">' + CM_UNIVERSITIES.filter(u => p.universities.includes(u.id)).length + ' unis</span></div>').join('') + '</div></div>' +
+        '</div>' +
+        '<div class="card" style="margin-top:18px"><div class="card-title-row"><h3>📚 Subjects by Semester</h3></div>' +
+          '<div class="table-wrap"><table class="data"><thead><tr><th>Program</th><th>Semester</th><th>Subjects</th></tr></thead><tbody>' +
+          Object.keys(CM_SUBJECTS).map(k => {
+            const parts = k.split(':');
+            const p = CM_PROGRAMS.find(x => x.id === parts[0]);
+            return '<tr><td>' + (p ? p.name : parts[0]) + '</td><td>Sem ' + parts[1] + '</td>' +
+              '<td>' + CM_SUBJECTS[k].map(s => s.name).join(', ') + '</td></tr>';
+          }).join('') +
+          '</tbody></table></div></div>';
+      }
+
+      /* ---------- RESOURCES ---------- */
+      if (tab === 'resources') {
+        html += '<div class="card"><div class="card-title-row"><h2>📥 Pending Resource Approvals (' + admin.pendingResources.length + ')</h2></div>' +
+          pendingTable() + '</div>' +
+        '<div class="card" style="margin-top:18px"><div class="card-title-row"><h3>📚 Public Library (' + CM_RESOURCES.length + ')</h3></div>' +
+          '<div class="table-wrap"><table class="data"><thead><tr><th>Title</th><th>Type</th><th>Subject</th><th>Year</th><th>Status</th></tr></thead><tbody>' +
+          CM_RESOURCES.slice(0, 12).map(r =>
+            '<tr><td>' + escapeHtml(r.title) + '</td><td>' + r.type.toUpperCase() + '</td><td>' + r.subject + '</td>' +
+            '<td>' + r.year + '</td><td><span class="badge badge-green">Approved</span></td></tr>').join('') +
+          '</tbody></table></div></div>';
+      }
+
+      /* ---------- MODERATION ---------- */
+      if (tab === 'moderation') {
+        html += '<div class="card"><div class="card-title-row"><h2>🚩 Reported Posts (' + admin.reportedPosts.length + ')</h2></div>' +
+          reportsTable() + '</div>';
+      }
+
+      /* ---------- ROADMAPS ---------- */
+      if (tab === 'roadmaps') {
+        html += '<div class="dash-grid">' + CM_CAREERS.map(c =>
+          '<div class="card"><div class="card-title-row"><h3>' + c.icon + ' ' + escapeHtml(c.name) + '</h3>' +
+          '<span class="badge badge-blue">' + c.roadmap.length + ' nodes</span></div>' +
+          '<p class="muted small">' + c.roadmap.map(n => n.name).join(' → ') + '</p></div>').join('') + '</div>';
+      }
+
+      /* ---------- ROLES ---------- */
+      if (tab === 'roles') {
+        const perms = [
+          ['Visitor', 'View public syllabus, read approved resources'],
+          ['Registered Student', 'Goals, roadmaps, planner, progress, community'],
+          ['Verified Student', 'Student perms + verification badge'],
+          ['Moderator', 'Review reports, approve resources, moderate discussions'],
+          ['Super Admin', 'Users, roles, permissions, curriculum, system settings']
+        ];
+        html += '<div class="card"><div class="card-title-row"><h2>🔐 Roles & Permissions</h2></div>' +
+          '<div class="table-wrap"><table class="data"><thead><tr><th>Role</th><th>Permissions</th></tr></thead><tbody>' +
+          perms.map(p => '<tr><td><strong>' + p[0] + '</strong></td><td>' + p[1] + '</td></tr>').join('') +
+          '</tbody></table></div>' +
+          (user.role !== 'admin' ? '<p class="muted small" style="margin-top:10px">🔒 Role management sirf Super Admin ke liye.</p>' : '') +
+        '</div>';
+      }
+
+      /* ---------- AUDIT ---------- */
+      if (tab === 'audit') {
+        html += '<div class="card"><div class="card-title-row"><h2>📋 Audit Logs</h2></div>' +
+          '<div class="topic-list">' + admin.auditLog.map(a =>
+            '<div class="topic-item"><span class="unit">' + a.time + '</span><span style="flex:1">' + escapeHtml(a.action) +
+            '</span><span class="badge badge-gray">' + escapeHtml(a.by) + '</span></div>').join('') + '</div></div>';
+      }
+
+      content.innerHTML = html;
+
+      /* wire */
+      $$('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+      $$('[data-approve]').forEach(b => b.onclick = () => { Store.approveResource(b.dataset.approve); toast('Resource approved ✅'); render(); });
+      $$('[data-reject]').forEach(b => b.onclick = () => { Store.rejectResource(b.dataset.reject); toast('Resource rejected'); render(); });
+      $$('[data-resolve]').forEach(b => b.onclick = () => { Store.resolveReport(b.dataset.resolve); toast('Report resolved ✅'); render(); });
+      $$('[data-verify]').forEach(b => b.onclick = () => { Store.verifyStudent(b.dataset.verify); toast('Student verified ✔'); render(); });
+      $$('[data-role-user]').forEach(sel => sel.onchange = () => {
+        if (user.role !== 'admin') { toast('Only Super Admin can change roles 🔒'); render(); return; }
+        Store.setUserRole(sel.dataset.roleUser, sel.value);
+        toast('Role updated to ' + sel.value);
+      });
+    }
+
+    function stat(label, value, sub) {
+      return '<div class="stat-card"><div class="label">' + label + '</div>' +
+        '<div class="value">' + value + '</div><div class="sub">' + sub + '</div></div>';
+    }
+    function pendingTable() {
+      if (!admin.pendingResources.length) return '<p class="muted">No pending approvals 🎉</p>';
+      return '<div class="table-wrap"><table class="data"><thead><tr><th>Title</th><th>By</th><th>Actions</th></tr></thead><tbody>' +
+        admin.pendingResources.map(r =>
+          '<tr><td><strong>' + escapeHtml(r.title) + '</strong><div class="small muted">' + r.type + ' · ' + r.subject + ' · ' + r.date + '</div></td>' +
+          '<td>' + escapeHtml(r.by) + '</td>' +
+          '<td class="approval-row"><button class="btn btn-sm btn-primary" data-approve="' + r.id + '">Approve</button>' +
+          '<button class="btn btn-sm btn-outline" data-reject="' + r.id + '">Reject</button></td></tr>').join('') +
+        '</tbody></table></div>';
+    }
+    function reportsTable() {
+      if (!admin.reportedPosts.length) return '<p class="muted">No reported posts 🎉</p>';
+      return '<div class="table-wrap"><table class="data"><thead><tr><th>Post</th><th>Reason</th><th>Actions</th></tr></thead><tbody>' +
+        admin.reportedPosts.map(r =>
+          '<tr><td><strong>' + escapeHtml(r.title) + '</strong><div class="small muted">by ' + escapeHtml(r.by) + ' · ' + r.date + '</div></td>' +
+          '<td>' + escapeHtml(r.reason) + '</td>' +
+          '<td><button class="btn btn-sm btn-primary" data-resolve="' + r.id + '">Resolve</button></td></tr>').join('') +
+        '</tbody></table></div>';
+    }
+
+    render();
+  </script>
+</body>
+</html>

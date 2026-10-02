@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Education — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('education', { title: 'Education' });
+
+    /* view state (defaults from profile) */
+    const state = {
+      program: sessionStorage.getItem('cm_edu_program') || user.program || 'btech-cse',
+      university: sessionStorage.getItem('cm_edu_uni') || user.university || 'aktu',
+      semester: parseInt(sessionStorage.getItem('cm_edu_sem') || user.semester || 4, 10),
+      subject: sessionStorage.getItem('cm_edu_subject') || null,
+      tab: sessionStorage.getItem('cm_edu_tab') || 'all'
+    };
+
+    function persist() {
+      sessionStorage.setItem('cm_edu_program', state.program);
+      sessionStorage.setItem('cm_edu_uni', state.university);
+      sessionStorage.setItem('cm_edu_sem', state.semester);
+      sessionStorage.setItem('cm_edu_subject', state.subject || '');
+      sessionStorage.setItem('cm_edu_tab', state.tab);
+    }
+
+    const TYPE_META = {
+      all:      { label: 'All Resources',  icon: '🗂️' },
+      syllabus: { label: 'Syllabus',       icon: '📋' },
+      pyq:      { label: 'PYQs',           icon: '📝' },
+      notes:    { label: 'Notes',          icon: '📖' },
+      lab:      { label: 'Labs',           icon: '🧪' },
+      ref:      { label: 'Reference Material', icon: '🔗' }
+    };
+
+    const content = document.querySelector('.content');
+
+    function progName(id) {
+      const p = CM_PROGRAMS.find(x => x.id === id);
+      return p ? p.name : (id === 'other' ? 'B.Tech CSE' : id);
+    }
+    function uniShort(id) {
+      const u = CM_UNIVERSITIES.find(x => x.id === id);
+      return u ? u.short : id;
+    }
+    function subjectName(id) {
+      const all = cmSubjectsFor(state.program, state.semester);
+      const s = all.find(x => x.id === id);
+      return s ? s.name : id;
+    }
+
+    function render() {
+      let html = '';
+
+      /* ---------- level 1: program → university → semester ---------- */
+      if (!state.subject) {
+        html += '<div class="content-head"><div><h1>Education Hub</h1>' +
+          '<p>Program → University → Semester → Subject → Resources</p></div></div>';
+
+        /* program selector */
+        html += '<div class="crumbs"><span>Program:</span>' +
+          CM_PROGRAMS.map(p =>
+            '<button class="btn btn-sm ' + (state.program === p.id ? 'btn-primary' : 'btn-outline') + '" data-pick-program="' + p.id + '">' + p.name + '</button>').join('') +
+          '</div>';
+
+        /* university selector */
+        html += '<div class="crumbs"><span>University:</span>' +
+          CM_UNIVERSITIES.map(u =>
+            '<button class="btn btn-sm ' + (state.university === u.id ? 'btn-primary' : 'btn-outline') + '" data-pick-uni="' + u.id + '">' + u.short + '</button>').join('') +
+          '</div>';
+
+        /* semester selector */
+        html += '<div class="crumbs"><span>Semester:</span>' +
+          CM_SEMESTERS.map(s =>
+            '<button class="btn btn-sm ' + (state.semester === s ? 'btn-primary' : 'btn-outline') + '" data-pick-sem="' + s + '">Sem ' + s + '</button>').join('') +
+          '</div>';
+
+        /* subject cards */
+        const subs = cmSubjectsFor(state.program, state.semester);
+        html += '<h3 style="margin:22px 0 12px">Subjects — ' + progName(state.program) + ' · ' + uniShort(state.university) + ' · Semester ' + state.semester + '</h3>';
+        html += '<div class="tile-grid">' +
+          subs.map(s => {
+            const count = CM_RESOURCES.filter(r => r.subject === s.id).length;
+            return '<button class="select-tile" data-open-subject="' + s.id + '">' +
+              '<div class="icon">' + s.icon + '</div>' +
+              '<div class="title">' + escapeHtml(s.name) + '</div>' +
+              '<div class="sub">' + s.code + ' · ' + count + ' resources</div>' +
+              '</button>';
+          }).join('') +
+        '</div>';
+
+        /* recently added strip */
+        html += '<h3 style="margin:26px 0 12px">Recently Added</h3><div class="res-grid">' +
+          CM_RESOURCES.slice(0, 3).map(resCardHtml).join('') + '</div>';
+      }
+
+      /* ---------- level 2: inside subject ---------- */
+      else {
+        const tabs = Object.keys(TYPE_META);
+        html += '<div class="crumbs">' +
+          '<a href="#" data-crumb="reset">' + progName(state.program) + '</a><span class="sep">›</span>' +
+          '<a href="#" data-crumb="uni">' + uniShort(state.university) + '</a><span class="sep">›</span>' +
+          '<a href="#" data-crumb="sem">Semester ' + state.semester + '</a><span class="sep">›</span>' +
+          '<strong>' + escapeHtml(subjectName(state.subject)) + '</strong>' +
+        '</div>';
+
+        html += '<div class="seg" style="margin-bottom:16px;flex-wrap:wrap">' +
+          tabs.map(t =>
+            '<button class="' + (state.tab === t ? 'active' : '') + '" data-tab="' + t + '">' +
+              TYPE_META[t].icon + ' ' + TYPE_META[t].label + '</button>').join('') +
+        '</div>';
+
+        /* search */
+        html += '<div class="form-field" style="max-width:380px">' +
+          '<input id="res-search" placeholder="🔍 Search resources…" value="' + escapeHtml(state.q || '') + '">' +
+        '</div>';
+
+        let list = CM_RESOURCES.filter(r => r.subject === state.subject);
+        if (state.tab !== 'all') list = list.filter(r => r.type === state.tab);
+        if (state.q) list = list.filter(r => r.title.toLowerCase().includes(state.q.toLowerCase()));
+
+        html += '<div class="res-grid" style="margin-top:4px">' +
+          (list.length ? list.map(resCardHtml).join('')
+            : '<div class="card" style="grid-column:1/-1;text-align:center;padding:34px">' +
+              '<p class="muted">No resources found for this filter.</p></div>') +
+        '</div>';
+
+        /* syllabus panel */
+        if (state.tab === 'all' || state.tab === 'syllabus') {
+          const syl = CM_SYLLABUS[state.subject] || CM_SYLLABUS.core;
+          html += '<div class="card" style="margin-top:22px">' +
+            '<div class="card-title-row"><h3>📋 ' + escapeHtml(subjectName(state.subject)) + ' — Syllabus Units</h3></div>' +
+            '<div class="topic-list">' +
+              syl.map(u => '<div class="topic-item"><span class="unit">' + u.unit + '</span>' + escapeHtml(u.name) + '</div>').join('') +
+            '</div></div>';
+        }
+      }
+      content.innerHTML = html;
+    }
+
+    function resCardHtml(r) {
+      const icoClass = r.fileType === 'PDF' ? 'pdf' : r.fileType === 'IMG' ? 'img' : 'doc';
+      return '<div class="res-card">' +
+        '<div class="res-top">' +
+          '<div class="file-ico ' + icoClass + '">' + r.fileType + '</div>' +
+          '<div><div class="res-title">' + escapeHtml(r.title) + '</div>' +
+          '<div class="res-meta">' + r.year + ' · ' + escapeHtml(subjectName(r.subject)) + ' · ' + uniShort(state.university) + ' · ' + r.fileType + ' · ' + r.size + '</div>' +
+          '<div class="res-meta">Uploaded ' + r.uploads + '</div></div>' +
+        '</div>' +
+        '<div class="res-actions">' +
+          '<button class="btn btn-sm btn-primary" data-view-res="' + r.id + '">View</button>' +
+          '<button class="btn btn-sm btn-outline" data-dl-res="' + r.id + '">⬇ Download</button>' +
+          '<button class="btn btn-sm btn-ghost" data-bm-res="' + r.id + '" title="Bookmark">🔖</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    /* ---------- events ---------- */
+    content.addEventListener('click', e => {
+      const pick = {
+        program: e.target.closest('[data-pick-program]'),
+        uni: e.target.closest('[data-pick-uni]'),
+        sem: e.target.closest('[data-pick-sem]')
+      };
+      if (pick.program) { state.program = pick.program.dataset.pickProgram; state.subject = null; persist(); render(); return; }
+      if (pick.uni)     { state.university = pick.uni.dataset.pickUni; state.subject = null; persist(); render(); return; }
+      if (pick.sem)     { state.semester = parseInt(pick.sem.dataset.pickSem, 10); state.subject = null; persist(); render(); return; }
+
+      const open = e.target.closest('[data-open-subject]');
+      if (open) { state.subject = open.dataset.openSubject; state.tab = 'all'; persist(); render(); return; }
+
+      const crumb = e.target.closest('[data-crumb]');
+      if (crumb) {
+        e.preventDefault();
+        if (crumb.dataset.crumb === 'reset') state.subject = null;
+        persist(); render(); return;
+      }
+
+      const tab = e.target.closest('[data-tab]');
+      if (tab) { state.tab = tab.dataset.tab; persist(); render(); return; }
+
+      const view = e.target.closest('[data-view-res]');
+      if (view) {
+        const r = CM_RESOURCES.find(x => x.id === view.dataset.viewRes);
+        openModal(
+          '<h3>' + escapeHtml(r.title) + '</h3>' +
+          '<p class="muted small">' + r.year + ' · ' + escapeHtml(subjectName(r.subject)) + ' · ' + r.fileType + ' · ' + r.size + '</p>' +
+          '<div style="border:1px solid var(--border);border-radius:12px;padding:40px;text-align:center;margin:16px 0;background:var(--bg)">' +
+            '<div style="font-size:2rem">' + TYPE_META[r.type].icon + '</div>' +
+            '<p class="muted small">Document preview (demo)</p>' +
+          '</div>' +
+          '<div class="modal-actions">' +
+            '<button class="btn btn-outline" onclick="closeModal()">Close</button>' +
+            '<button class="btn btn-primary" onclick="closeModal();toast(\'Added to downloads (demo)\')">⬇ Download</button>' +
+          '</div>');
+        return;
+      }
+
+      const dl = e.target.closest('[data-dl-res]');
+      if (dl) { toast('Download started (demo) ⬇'); return; }
+
+      const bm = e.target.closest('[data-bm-res]');
+      if (bm) {
+        bm.classList.toggle('active');
+        toast('Bookmark saved 🔖');
+      }
+    });
+
+    content.addEventListener('input', e => {
+      if (e.target.id === 'res-search') {
+        state.q = e.target.value;
+        /* re-render only list portion: simplest → full render but keep focus */
+        const pos = e.target.selectionStart;
+        render();
+        const inp = $('#res-search');
+        if (inp) { inp.focus(); inp.setSelectionRange(pos, pos); }
+      }
+    });
+
+    render();
+    bindTaskActions();
+  </script>
+</body>
+</html>

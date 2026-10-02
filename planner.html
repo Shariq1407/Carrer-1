@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Daily Planner — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('planner', { title: 'Daily Planner' });
+
+    let viewOffset = 0;   /* which day is open */
+    let viewMode = 'day'; /* day | week | month */
+
+    const content = document.querySelector('.content');
+    const WD = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    function planned(o)  { return Store.plannedMinutes(o); }
+    function doneM(o)    { return Store.doneMinutes(o); }
+    function remaining(o){ return Math.max(0, planned(o) - doneM(o)); }
+
+    function render() {
+      const plannedM = planned(viewOffset);
+      const doneMin = doneM(viewOffset);
+      const remM = remaining(viewOffset);
+      const s = Store.streakInfo();
+      const tasks = Store.todayTasks(viewOffset);
+      const pending = tasks.filter(t => !t.done);
+      const completed = tasks.filter(t => t.done);
+      const overdue = Store.overdueTasks(0);
+
+      const d = Store.taskDate(viewOffset);
+      const dayLabel = d.toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+
+      let html = '';
+
+      /* ---------- day view ---------- */
+      if (viewMode === 'day') {
+        html += '<div class="planner-grid">' +
+          '<div class="col">' +
+
+            /* day nav + workload */
+            '<div class="card">' +
+              '<div class="card-title-row">' +
+                '<h3>' + dayLabel + '</h3>' +
+                '<div class="day-nav">' +
+                  '<button class="btn btn-sm btn-outline" id="prev-day">←</button>' +
+                  '<button class="btn btn-sm btn-outline" id="go-today">Today</button>' +
+                  '<button class="btn btn-sm btn-outline" id="next-day">→</button>' +
+                '</div>' +
+              '</div>' +
+              '<div class="stat-grid" style="margin-bottom:0">' +
+                '<div class="stat-card"><div class="label">Day\'s Workload</div><div class="value">' + fmtMin(plannedM) + '</div></div>' +
+                '<div class="stat-card"><div class="label">Completed</div><div class="value" style="color:var(--success)">' + fmtMin(doneMin) + '</div></div>' +
+                '<div class="stat-card"><div class="label">Remaining</div><div class="value" style="color:var(--warning)">' + fmtMin(remM) + '</div></div>' +
+                '<div class="stat-card"><div class="label">Current Streak</div><div class="value">🔥 ' + s.current + '</div></div>' +
+              '</div>' +
+            '</div>' +
+
+            /* overdue banner */
+            (overdue.length
+              ? '<div class="card" style="border-color:var(--warning);background:var(--warning-light)">' +
+                  '<div class="card-title-row" style="margin-bottom:6px"><h3>📦 ' + overdue.length + ' unfinished task' + (overdue.length > 1 ? 's' : '') + ' from earlier days</h3></div>' +
+                  '<p class="small">Auto-reschedule inhe aage move karega — never delete, never overload (max ' +
+                    fmtMin(Math.round(user.dailyMinutes * 1.2)) + '/day).</p>' +
+                  '<button class="btn btn-primary btn-sm" id="auto-resched" style="margin-top:10px">Auto-Reschedule Now</button>' +
+                '</div>'
+              : '') +
+
+            /* pending tasks */
+            '<div class="card">' +
+              '<div class="card-title-row"><h3>Pending Tasks</h3>' +
+                '<button class="btn btn-sm btn-primary" id="add-task">+ Add Task</button></div>' +
+              (pending.length
+                ? pending.map(t => renderTaskRow(t, { showDate: viewOffset !== 0 })).join('')
+                : '<p class="muted">Nothing pending for this day 🎉</p>') +
+            '</div>' +
+
+            /* completed tasks */
+            (completed.length
+              ? '<div class="card">' +
+                  '<div class="card-title-row"><h3>Completed</h3></div>' +
+                  completed.map(t => renderTaskRow(t, { showDate: viewOffset !== 0 })).join('') +
+                '</div>'
+              : '') +
+
+          '</div>' +
+
+          '<div class="col">' +
+            /* skill focus card */
+            '<div class="card">' +
+              '<div class="card-title-row"><h3>🎯 Skill Focus</h3></div>' +
+              '<p class="muted small">Aaj ke tasks kis roadmap skill se linked hain:</p>' +
+              '<div class="skill-tags" style="margin-top:10px">' +
+                (tasks.length ? [...new Set(tasks.map(t => t.skill))].map(sk =>
+                  '<span>' + escapeHtml(skillName(sk)) + '</span>').join('')
+                : '<span class="muted small">No tasks</span>') +
+              '</div>' +
+            '</div>' +
+
+            /* capacity meter */
+            '<div class="card">' +
+              '<div class="card-title-row"><h3>⚖️ Capacity</h3></div>' +
+              '<p class="muted small">Daily target: <strong>' + fmtMin(user.dailyMinutes) + '</strong> · Max allowed (120%): <strong>' +
+                fmtMin(Math.round(user.dailyMinutes * 1.2)) + '</strong></p>' +
+              '<div class="progress" style="margin-top:12px"><span style="width:' +
+                Math.min(100, Math.round(plannedM / (user.dailyMinutes * 1.2) * 100)) + '%"></span></div>' +
+              '<p class="small" style="margin-top:8px;color:' + (plannedM > user.dailyMinutes * 1.2 ? 'var(--danger)' : 'var(--success)') + '">' +
+                (plannedM > user.dailyMinutes * 1.2 ? '⚠ Over max capacity!' : '✅ Within safe capacity') +
+              '</p>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }
+
+      /* ---------- week view ---------- */
+      if (viewMode === 'week') {
+        const start = Math.floor(viewOffset / 7) * 7;
+        html += '<div class="card">' +
+          '<div class="card-title-row">' +
+            '<h3>Week View</h3>' +
+            '<div class="day-nav">' +
+              '<button class="btn btn-sm btn-outline" id="prev-day">← Prev</button>' +
+              '<button class="btn btn-sm btn-outline" id="go-today">This Week</button>' +
+              '<button class="btn btn-sm btn-outline" id="next-day">Next →</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="week-grid">' +
+            [0,1,2,3,4,5,6].map(i => {
+              const off = start + i;
+              const dt = Store.taskDate(off);
+              const dayTasks = Store.todayTasks(off);
+              return '<div class="week-day' + (off === 0 ? ' today' : '') + '">' +
+                '<div class="wd-name">' + WD[dt.getDay()] + '</div>' +
+                '<div class="wd-date">' + dt.getDate() + '</div>' +
+                dayTasks.map(t =>
+                  '<div class="wd-task' + (t.done ? ' done' : '') + '" title="' + escapeHtml(t.name) + '">' +
+                    (t.done ? '✓ ' : '') + escapeHtml(t.name) + ' · ' + t.minutes + 'm</div>').join('') +
+                (dayTasks.length === 0 ? '<div class="small muted">—</div>' : '') +
+              '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+
+        /* week totals */
+        '<div class="stat-grid" style="margin-top:16px">' +
+          '<div class="stat-card"><div class="label">Week Planned</div><div class="value">' +
+            fmtMin([0,1,2,3,4,5,6].reduce((s2, i) => s2 + planned(start + i), 0)) + '</div></div>' +
+          '<div class="stat-card"><div class="label">Week Done</div><div class="value" style="color:var(--success)">' +
+            fmtMin([0,1,2,3,4,5,6].reduce((s2, i) => s2 + doneM(start + i), 0)) + '</div></div>' +
+          '<div class="stat-card"><div class="label">Streak</div><div class="value">🔥 ' + s.current + '</div></div>' +
+        '</div>';
+      }
+
+      /* ---------- month view ---------- */
+      if (viewMode === 'month') {
+        const base = Store.taskDate(0);
+        const y = base.getFullYear(), m = base.getMonth();
+        const first = new Date(y, m, 1);
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        const startDow = first.getDay();
+        const todayNum = base.getDate();
+
+        html += '<div class="card">' +
+          '<div class="card-title-row"><h3>' + first.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }) + ' — Study Map</h3></div>' +
+          '<div class="week-grid" style="grid-template-columns:repeat(7,1fr)">' +
+            ['S','M','T','W','T','F','S'].map(w => '<div class="week-day" style="min-height:0;text-align:center"><div class="wd-name">' + w + '</div></div>').join('') +
+            Array(startDow).fill('<div></div>').join('') +
+            Array.from({ length: daysInMonth }, (_, i) => {
+              const n = i + 1;
+              const off = n - todayNum;
+              const dayTasks = Store.todayTasks(off);
+              const doneCnt = dayTasks.filter(t => t.done).length;
+              const allDone = dayTasks.length && doneCnt === dayTasks.length;
+              const anyDone = doneCnt > 0;
+              return '<div class="week-day' + (n === todayNum ? ' today' : '') + '" style="min-height:64px">' +
+                '<div class="wd-date">' + n + '</div>' +
+                (dayTasks.length
+                  ? '<div class="small" style="font-weight:700;color:' + (allDone ? 'var(--success)' : anyDone ? 'var(--warning)' : 'var(--text-3)') + '">' +
+                      (allDone ? '✓ ' : '') + doneCnt + '/' + dayTasks.length + '</div>'
+                  : '<div class="small muted">·</div>') +
+              '</div>';
+            }).join('') +
+          '</div>' +
+        '</div>' +
+        '<p class="muted small" style="margin-top:10px">Cells show completed/total tasks. Green = all done, amber = partial.</p>';
+      }
+
+      content.innerHTML = html;
+
+      /* ---------- wire events ---------- */
+      const pd = $('#prev-day');  if (pd) pd.onclick = () => { viewOffset--; if (viewMode === 'week') viewOffset -= 6; render(); };
+      const nd = $('#next-day');  if (nd) nd.onclick = () => { viewOffset++; if (viewMode === 'week') viewOffset += 6; render(); };
+      const gt = $('#go-today');  if (gt) gt.onclick = () => { viewOffset = 0; render(); };
+      const at = $('#auto-resched'); if (at) at.onclick = runReschedule;
+
+      const addBtn = $('#add-task');
+      if (addBtn) addBtn.onclick = () => openModal(
+        '<h3>Add Task</h3>' +
+        '<div class="form-field"><label>Task name</label><input id="nt-name" placeholder="e.g. SQL JOIN Practice"></div>' +
+        '<div class="form-row">' +
+          '<div class="form-field"><label>Duration (min)</label><input id="nt-min" type="number" value="45" min="10" max="180"></div>' +
+          '<div class="form-field"><label>Priority</label><select id="nt-pri"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select></div>' +
+        '</div>' +
+        '<div class="modal-actions">' +
+          '<button class="btn btn-outline" onclick="closeModal()">Cancel</button>' +
+          '<button class="btn btn-primary" id="nt-save">Add Task</button>' +
+        '</div>');
+      const saveBtn = $('#nt-save');
+      if (saveBtn) saveBtn.onclick = () => {
+        const name = $('#nt-name').value.trim();
+        if (!name) { toast('Task name required'); return; }
+        Store.addTask({
+          name, minutes: parseInt($('#nt-min').value, 10) || 45,
+          priority: $('#nt-pri').value, date: viewOffset
+        });
+        closeModal();
+        toast('Task added ✅');
+        render();
+      };
+    }
+
+    function runReschedule() {
+      const moved = Store.rescheduleRun();
+      if (moved.length) {
+        const d = Store.taskDate(moved[0].target);
+        const label = d.toLocaleDateString('en-IN', { weekday: 'long' });
+        openModal(
+          '<h3>📦 Reschedule Complete</h3>' +
+          '<p class="muted">' + moved.length + ' unfinished task' + (moved.length > 1 ? 's' : '') +
+            ' moved forward. First task moved to <strong>' + label + '</strong>.</p>' +
+          '<p class="small muted" style="margin-top:8px">Rules applied: pending tasks kept · prerequisite (high-priority) tasks first · ' +
+            'daily load never exceeds 120% of capacity · max 3 deadline changes per goal.</p>' +
+          '<div class="modal-actions"><button class="btn btn-primary" onclick="closeModal();location.reload()">Great!</button></div>');
+      } else {
+        toast('Nothing to reschedule ✅');
+        render();
+      }
+    }
+
+    /* segmented control above content */
+    const seg = document.createElement('div');
+    seg.className = 'seg';
+    seg.style.cssText = 'margin:0 0 4px;padding:24px 24px 0;';
+    seg.innerHTML =
+      '<button data-mode="day" class="active">Day</button>' +
+      '<button data-mode="week">Week</button>' +
+      '<button data-mode="month">Month</button>';
+    content.before(seg);
+    seg.addEventListener('click', e => {
+      const m = e.target.closest('[data-mode]');
+      if (!m) return;
+      viewMode = m.dataset.mode;
+      seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === m));
+      render();
+    });
+
+    render();
+    bindTaskActions();
+  </script>
+</body>
+</html>

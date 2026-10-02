@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Progress — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('progress', { title: 'Progress' });
+
+    const content = document.querySelector('.content');
+    const career = Store.activeGoal();
+    const streak = Store.streakInfo();
+
+    /* aggregates */
+    const doneTasks = Store.tasks.filter(t => t.userId === user.id && t.done);
+    const weekMins = doneTasks.filter(t => t.date >= -6 && t.date <= 0)
+      .reduce((s, t) => s + t.minutes, 0);
+    const monthMins = doneTasks.filter(t => t.date >= -29 && t.date <= 0)
+      .reduce((s, t) => s + t.minutes, 0);
+
+    content.innerHTML =
+      '<div class="content-head"><div><h1>Progress Tracking</h1>' +
+        '<p>Aapki mehnat ke numbers — honest aur clear.</p></div></div>' +
+
+      /* ring + stats */
+      '<div class="dash-grid" style="margin-bottom:20px">' +
+        '<div class="card" style="display:flex;gap:26px;align-items:center;flex-wrap:wrap">' +
+          '<div class="ring" style="--pct:' + (user.goalProgress || 0) + ';position:relative">' +
+            '<div class="ring-in"><div class="pct">' + (user.goalProgress || 0) + '%</div>' +
+            '<div class="lbl">Goal Progress</div></div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:200px">' +
+            '<h3>' + (career ? career.icon + ' Become a ' + escapeHtml(career.name) : 'No active goal') + '</h3>' +
+            '<p class="muted small" style="margin-top:6px">' +
+              (career
+                ? user.completedSkills.length + ' of ' + career.roadmap.length + ' skills completed · ~' +
+                  career.roadmap.filter(n => !user.completedSkills.includes(n.id)).reduce((s, n) => s + n.weeks, 0) +
+                  ' weeks of roadmap left'
+                : 'Choose a career to start tracking.') + '</p>' +
+            '<a class="btn btn-sm btn-outline" style="margin-top:12px" href="roadmap.html">View Roadmap</a>' +
+          '</div>' +
+        '</div>' +
+
+        '<div class="card">' +
+          '<div class="card-title-row"><h3>Streaks</h3></div>' +
+          '<div class="stat-grid" style="grid-template-columns:1fr 1fr;margin-bottom:0">' +
+            '<div class="stat-card" style="box-shadow:none;border:none;padding:10px">' +
+              '<div class="label">Current</div><div class="value">🔥 ' + streak.current + ' days</div></div>' +
+            '<div class="stat-card" style="box-shadow:none;border:none;padding:10px">' +
+              '<div class="label">Longest</div><div class="value">🏅 ' + streak.longest + ' days</div></div>' +
+          '</div>' +
+          '<p class="muted small">Ek din mein kam se kam ek task complete karo — streak chalti rahegi.</p>' +
+        '</div>' +
+      '</div>' +
+
+      /* big stats */
+      '<div class="stat-grid">' +
+        '<div class="stat-card"><div class="label">Weekly Study</div><div class="value">' + fmtMin(weekMins) + '</div>' +
+          '<div class="sub">last 7 days</div></div>' +
+        '<div class="stat-card"><div class="label">Monthly Study</div><div class="value">' + fmtMin(monthMins) + '</div>' +
+          '<div class="sub">last 30 days</div></div>' +
+        '<div class="stat-card"><div class="label">Completed Tasks</div><div class="value">' + doneTasks.length + '</div>' +
+          '<div class="sub">all time</div></div>' +
+        '<div class="stat-card"><div class="label">Completed Skills</div><div class="value">' +
+          (career ? user.completedSkills.length + '/' + career.roadmap.length : '0') + '</div>' +
+          '<div class="sub">roadmap skills</div></div>' +
+        '<div class="stat-card"><div class="label">Projects</div><div class="value">' +
+          (career && user.completedSkills.includes(career.roadmap[career.roadmap.length - 1].id) ? 1 : 0) + '</div>' +
+          '<div class="sub">final roadmap project</div></div>' +
+      '</div>' +
+
+      /* weekly chart */
+      '<div class="card" style="margin-bottom:20px">' +
+        '<div class="card-title-row"><h3>Weekly Study Minutes</h3>' +
+          '<span class="badge badge-blue">Mon–Sun</span></div>' +
+        '<div class="bar-chart" id="week-chart"></div>' +
+      '</div>' +
+
+      /* skill completion list */
+      (career
+        ? '<div class="card">' +
+            '<div class="card-title-row"><h3>' + career.icon + ' Skill Completion</h3></div>' +
+            career.roadmap.map(n => {
+              const st = Store.skillState(career.id, n.id);
+              return '<div style="margin-bottom:12px">' +
+                '<div style="display:flex;justify-content:space-between;font-size:.88rem;font-weight:700">' +
+                  '<span>' + escapeHtml(n.name) + '</span>' +
+                  '<span class="' + (st === 'completed' ? 'muted' : '') + '">' +
+                    (st === 'completed' ? '✓ Done' : st === 'inprogress' ? 'In Progress' : 'Locked') + '</span>' +
+                '</div>' +
+                '<div class="progress thin" style="margin-top:5px"><span style="width:' +
+                  (st === 'completed' ? 100 : st === 'inprogress' ? 35 : 0) + '%"></span></div>' +
+              '</div>';
+            }).join('') +
+          '</div>'
+        : '');
+
+    /* weekly chart — Monday-start week */
+    const wk = [];
+    const today = new Date();
+    const dow = (today.getDay() + 6) % 7; /* Mon=0 */
+    const names = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    for (let i = 0; i < 7; i++) {
+      const off = i - dow; /* 0 = this Monday */
+      const mins = Store.tasks
+        .filter(t => t.userId === user.id && t.date === off && t.done)
+        .reduce((s, t) => s + t.minutes, 0);
+      wk.push({ label: names[i], value: mins, dim: off < 0 && mins === 0 });
+    }
+    barChart($('#week-chart'), wk);
+  </script>
+</body>
+</html>

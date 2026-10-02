@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Assistant — Career Mate</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <script src="js/data.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Store.load();
+    const user = Store.user();
+    initShell('assistant', { title: 'AI Career Assistant' });
+
+    const content = document.querySelector('.content');
+    const career = Store.activeGoal();
+
+    /* deterministic "AI" — rule-based on user state */
+    function aiReply(qRaw) {
+      const q = qRaw.toLowerCase();
+      const inProg = career ? career.roadmap.find(n => Store.skillState(career.id, n.id) === 'inprogress') : null;
+      const todayPending = Store.todayTasks(0).filter(t => !t.done);
+
+      if (/aaj|today/.test(q) && /padh|kya|study|karna/.test(q)) {
+        if (todayPending.length) {
+          const t = todayPending[0];
+          return 'Aaj "' + t.name + '" complete karo. Estimated time: ' + t.minutes + ' minutes. ' +
+            (todayPending.length > 1 ? 'Uske baad "' + todayPending[1].name + '" (' + todayPending[1].minutes + ' min).' : '');
+        }
+        return 'Aaj koi pending task nahi — roadmap agla skill start karo: ' +
+          (inProg ? inProg.name : 'apna roadmap open karo.');
+      }
+      if (/complete ho gaya|complete|done|finish/.test(q) && /ab|next/.test(q)) {
+        return 'Ab "' + (inProg ? inProg.name : career ? career.roadmap[0].name : 'apna goal set karo') +
+          '" start karo — roadmap ke hisaab se yeh agla step hai.';
+      }
+      if (/streak/.test(q)) {
+        const s = Store.streakInfo();
+        return 'Aapki current streak ' + s.current + ' din ki hai (longest: ' + s.longest + '). ' +
+          'Aaj ka ek task complete karke streak maintain karo!';
+      }
+      if (/placement|internship|job/.test(q)) {
+        return 'Placements ke liye: 1) Daily DSA practice (2 problems), 2) Apne roadmap ke projects complete karo — ' +
+          'interview mein discussion ke liye, 3) Resume profile page se polish karo. Consistency > cramming.';
+      }
+      if (/kaise|how|start/.test(q)) {
+        return 'Roadmap order follow karo — prerequisites pehle. Abhi aap "' +
+          (inProg ? inProg.name : 'roadmap ke start') + '" stage pe ho. Daily planner ke tasks complete karo, ' +
+          'roadmap khud aage badhega.';
+      }
+      return 'Main aapke study plan mein help kar sakta hoon. Puchiye: "Aaj kya padhna chahiye?", "Mera SQL complete ho gaya, ab kya karu?", ' +
+        'ya "Placement prep kaise karu?"';
+    }
+
+    content.innerHTML =
+      '<div class="content-head"><div><h1>AI Career Assistant</h1>' +
+        '<p>Career guidance — based on aapka program, goal aur roadmap progress.</p></div>' +
+        '<div class="badge badge-blue">🔒 Privacy-safe: no passwords, billing, private messages</div></div>' +
+
+      /* context chips */
+      '<div class="crumbs" style="row-gap:8px">' +
+        '<span class="badge badge-gray">' + (career ? career.icon + ' ' + escapeHtml(career.name) : 'No goal') + '</span>' +
+        '<span class="badge badge-gray">📚 ' + escapeHtml((user.program || 'btech-cse').toUpperCase()) + '</span>' +
+        '<span class="badge badge-gray">🏛 ' + escapeHtml((user.university || 'aktu').toUpperCase()) + '</span>' +
+        '<span class="badge badge-gray">📅 Semester ' + (user.semester || '—') + '</span>' +
+        '<span class="badge badge-gray">✅ ' + (career ? user.completedSkills.length : 0) + ' skills done</span>' +
+      '</div>' +
+
+      '<div class="card" style="max-width:720px;margin:0 auto">' +
+        '<div id="chat-log" style="display:grid;gap:14px;min-height:280px;align-content:start;padding:6px 0">' +
+          '<div style="display:flex;gap:10px">' +
+            '<div class="notif-item" style="margin:0;flex:1;background:var(--primary-light);border-color:#c7d2fe">' +
+              '<div class="n-ico">🤖</div>' +
+              '<div><div class="n-title">Hi ' + escapeHtml(user.fullName.split(' ')[0]) + '! Main aapka career assistant hoon.</div>' +
+              '<div class="n-time">Puchiye: "Aaj kya padhna chahiye?" ya "Mera SQL complete ho gaya, ab kya karu?"</div></div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;margin-top:14px">' +
+          '<input id="chat-in" placeholder="Apna sawaal likho…" style="flex:1;padding:11px 14px;border:1.5px solid var(--border-strong);border-radius:10px;font:.92rem var(--font)">' +
+          '<button class="btn btn-primary" id="chat-send">Send</button>' +
+        '</div>' +
+      '</div>';
+
+    function addMsg(text, who) {
+      const log = $('#chat-log');
+      const mine = who === 'me';
+      const div = document.createElement('div');
+      div.innerHTML =
+        '<div style="display:flex;gap:10px;flex-direction:' + (mine ? 'row-reverse' : 'row') + '">' +
+          '<div class="notif-item" style="margin:0;max-width:85%;' +
+            (mine ? 'background:var(--bg);' : 'background:var(--primary-light);border-color:#c7d2fe;') + '">' +
+            '<div class="n-ico">' + (mine ? '🧑' : '🤖') + '</div>' +
+            '<div><div class="n-title" style="white-space:pre-wrap">' + escapeHtml(text) + '</div></div>' +
+          '</div>' +
+        '</div>';
+      log.appendChild(div.firstElementChild);
+      log.scrollTop = log.scrollHeight;
+    }
+
+    function send() {
+      const inp = $('#chat-in');
+      const q = inp.value.trim();
+      if (!q) return;
+      addMsg(q, 'me');
+      inp.value = '';
+      setTimeout(() => addMsg(aiReply(q), 'ai'), 450);
+    }
+    $('#chat-send').onclick = send;
+    $('#chat-in').addEventListener('keydown', e => { if (e.key === 'Enter') send(); });
+  </script>
+</body>
+</html>
